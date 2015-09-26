@@ -10,7 +10,7 @@ import os
 def options(opt):
     opt.load(['compiler_c', 'compiler_cxx'])
     opt.load(['default-compiler-flags',
-              'boost', 'ns3'],
+              'boost', 'ns3', 'sqlite3'],
              tooldir=['.waf-tools'])
 
     opt.add_option('--logging',action='store_true',default=True,dest='logging',help='''enable logging in simulation scripts''')
@@ -34,7 +34,7 @@ OTHER_NS3_MODULES = ['antenna', 'aodv', 'bridge', 'brite', 'buildings', 'click',
 def configure(conf):
     conf.load(['compiler_c', 'compiler_cxx',
                'default-compiler-flags',
-               'boost', 'ns3'])
+               'boost', 'ns3', 'sqlite3'])
 
     if not os.environ.has_key('PKG_CONFIG_PATH'):
         os.environ['PKG_CONFIG_PATH'] = ':'.join([
@@ -65,14 +65,28 @@ def configure(conf):
         conf.define('NS3_LOG_ENABLE', 1)
         conf.define('NS3_ASSERT_ENABLE', 1)
 
+    conf.check_sqlite3(mandatory=True)
+
+    conf.write_config_header('ndns/src/config.hpp', remove=False)
+
 def build (bld):
     deps =  ' '.join (['ns3_'+dep for dep in MANDATORY_NS3_MODULES + OTHER_NS3_MODULES]).upper ()
+
+    ndns = bld.objects (
+        target = "ndns",
+        features = ["cxx"],
+        source=bld.path.ant_glob(['ndns/src/**/*.cpp'],
+                                 excl=['ndns/src/main.cpp',]),
+        includes = "ndns/src",
+        export_includes = "ndns/src",
+        use = deps
+        )
 
     common = bld.objects (
         target = "extensions",
         features = ["cxx"],
         source = bld.path.ant_glob(['extensions/**/*.cc', 'extensions/**/*.cpp']),
-        use = deps,
+        use = deps + " ndns",
         )
 
     for scenario in bld.path.ant_glob (['scenarios/*.cc']):
@@ -82,7 +96,8 @@ def build (bld):
             features = ['cxx'],
             source = [scenario],
             use = deps + " extensions",
-            includes = "extensions"
+            includes = "extensions",
+            export_includes = "extensions"
             )
 
     for scenario in bld.path.ant_glob (['scenarios/*.cpp']):
@@ -91,8 +106,7 @@ def build (bld):
             target = name,
             features = ['cxx'],
             source = [scenario],
-            use = deps + " extensions",
-            includes = "extensions"
+            use = deps + " extensions ndns"
             )
 
 def shutdown (ctx):
