@@ -12,6 +12,8 @@ namespace ns3 {
 int
 main(int argc, char* argv[])
 {
+  namespace ndns = ::ndn::ndns;
+
   // setting default parameters for PointToPoint links and channels
   Config::SetDefault("ns3::PointToPointNetDevice::DataRate", StringValue("1Mbps"));
   Config::SetDefault("ns3::PointToPointChannel::Delay", StringValue("10ms"));
@@ -42,30 +44,21 @@ main(int argc, char* argv[])
 
   // Consumer
   ndn::AppHelper consumerHelper("NdnsDigApp");
-  // Consumer will request /prefix/0, /prefix/1, ...
-  //consumerHelper.SetPrefix("/prefix");
-  //consumerHelper.SetAttribute("Frequency", StringValue("10")); // 10 interests a second
-  consumerHelper.Install(nodes.Get(0));                        // first node
+  consumerHelper.Install(nodes.Get(0)).Start(Seconds(3)); // first node
 
-  ::ndn::ndns::ManagementTool tool("test.db", ns3::ndn::StackHelper::getKeyChain());
-  ::ndn::ndns::DaemonHelper daemonHelper("test.db", tool);
+  ndns::ManagementTool tool("test.db", ns3::ndn::StackHelper::getKeyChain());
+  ndns::DaemonHelper daemonHelper("test.db", tool);
 
-  string zone = "/";
-  string parent = "/";
-  string ksk = "";
-  string dsk = "";
-  daemonHelper.createZone(zone, parent, 100, 200, ksk, dsk);
+  string rootZone = "/";
+  string rootParent = "/";
+  string rootKsk = "/a";
+  string rootDsk = "/b";
+  daemonHelper.createZone(rootZone, rootParent, 100, 200, rootKsk, rootDsk);
 
   // Producer
   ndn::AppHelper producerHelper("NdnsServerApp");
-  // Producer will reply to all requests starting with /prefix
-  //producerHelper.SetPrefix("/prefix");
-<<<<<<< HEAD
   producerHelper.SetAttribute("ConfigFile", StringValue("ndns.conf.sample"));
-=======
-  producerHelper.SetAttribute("ConfigFile", StringValue("/Users/dibenede/Sites/ndn/hackathon/ndnSIM/ndns-scenario/ndns.conf.sample"));
->>>>>>> d57bc74... add and parse test ndns config
-  producerHelper.Install(nodes.Get(2)); // last node
+  producerHelper.Install(nodes.Get(2)).Start(Seconds(2)); // last node
 
   Simulator::Stop(Seconds(20.0));
 
